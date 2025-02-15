@@ -41,6 +41,10 @@ const float alt_target = 5000.0f;
 #include <Servo.h>
 #include <SD.h>
 
+#if SIMULATE
+    #include <Dictionary.h>
+    Dictionary *simulatedSensorValues = new Dictionary();
+#endif
 
 
 // PIN DEFINITIONS
@@ -131,6 +135,10 @@ void setup () {
     if (DEBUG) {Serial.println("Setup complete!");}
     // Blink the LED a few times to show that setup was successful
     LEDSuccess();
+
+    #if SIMULATE
+      simulatedSensorValues("test", "1");
+    #endif
 }
 
 
@@ -202,7 +210,7 @@ void run_timer() {
 // Initialize the SD card (returns 0 if successful, -1 if failed)
 // Right now, tries to connect 10 times before going into an error state; could change so it keeps trying indefinitely
 int initializeSDCard() {
-    if (!SIMULATE) {
+    #if !SIMULATE
 
         if (DEBUG) {Serial.print("Initializing SD card...");}
 
@@ -222,10 +230,9 @@ int initializeSDCard() {
 
         if (DEBUG) {Serial.println("SD card initialized successfully!");}
 
-    }
-    else {
+    #else
         Serial.println("(simulation) Initializing SD card... SD card initialized successfully!");
-    }
+    #endif
 
     sd_active = true;
     // Write CSV header to the file
@@ -390,3 +397,23 @@ void LEDError() {
 void transmitData() {
     if (DEBUG) {Serial.println("Transmitting data over radio...");}
 }
+
+
+#if SIMULATE
+void getSimulatedData() {
+    String serial_buffer = Serial.readString();
+    String current_key, current_value = "";
+    for (int i = 0; i < serial_buffer.length(); i++) {
+        if (serial_buffer[i] == ':') {
+            current_key = current_value;
+            current_value = "";
+        } else if (serial_buffer[i] == ',') {
+            simulatedSensorValues(current_key, current_value);
+            current_key = "";
+            current_value = "";
+        } else {
+            current_value += serial_buffer[i];
+        }
+    }
+}
+#endif
